@@ -1,0 +1,23 @@
+#!/bin/sh
+# set -e
+
+if [ "$power_mode" == interrupt ] ; then
+    echo "interrupt not supported by obmcutil" >&2
+    exit 1
+fi
+
+/bin/ping -c 1 "$power_address" > /dev/null || ( echo "PING TIME OUT"; exit 1)
+
+# use power_id to pass in additional options
+# old command that worked on mihawk but didn't work on wsp
+# sshpass -p "$power_pass" ssh -o StrictHostKeyChecking=no "$power_user"@"$power_address" obmcutil $power_id  power"$power_mode"
+
+sshpass -p "$power_pass" ssh -o StrictHostKeyChecking=no "$power_user"@"$power_address" "test -f /usr/bin/obmcutil && true"
+
+if [ $? -eq 0 ]; then
+	obm_path=/usr/bin/
+else
+	obm_path=/usr/sbin/
+fi
+
+sshpass -p "$power_pass" ssh -o StrictHostKeyChecking=no "$power_user"@"$power_address" ${obm_path}obmcutil $power_id power"$power_mode"
