@@ -55,6 +55,12 @@ def default_install_options_for_distro(osmajor_name, osminor, variant, arch):
     if name == 'Fedora':
         fedora = version
 
+    suse, suse_version = False, False
+    suse_like = ['SUSELinuxEnterprise']
+    if any(distro in name for distro in suse_like):
+        suse = str((name.split(" ",1)[0]).split("SUSELinuxEnterprise",1)[1])
+        suse_minor = str(version)
+
     # We default to assuming all features are present, with features
     # conditionally turned off if needed. That way, unrecognised custom
     # distros will be assumed to support all features. The admin can
@@ -178,17 +184,21 @@ def default_install_options_for_distro(osmajor_name, osminor, variant, arch):
     # for s390, s390x and armhfp, we default to ''
     kernel_options['netbootloader'] = netbootloader.get(arch.arch, '')
     if arch.arch in ['ppc', 'ppc64', 'ppc64le']:
-        if rhel and int(rhel) < 9 or \
-                (fedora and fedora != 'rawhide' and int(fedora) < 34):
-            kernel_options['leavebootorder'] = None
-        else:
-            kernel_options['inst.leavebootorder'] = None
+        if not suse:
+            if rhel and int(rhel) < 9 or \
+                    (fedora and fedora != 'rawhide' and int(fedora) < 34):
+                kernel_options['leavebootorder'] = None
+            else:
+                kernel_options['inst.leavebootorder'] = None
 
     # Keep old kernel options for older distros
     if rhel and int(rhel) < 9 or \
             (fedora and fedora != 'rawhide' and int(fedora) < 34):
         kernel_options['ksdevice'] = 'bootif'
         ks_meta['ks_keyword'] = 'ks'
+
+    if suse:
+        ks_meta['auto_installer'] = 'autoyast'
 
     return InstallOptions(ks_meta, kernel_options, {})
 

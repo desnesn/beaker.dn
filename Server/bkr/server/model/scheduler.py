@@ -2652,16 +2652,14 @@ class Recipe(TaskBase, ActivityMixin):
         ks_appends = None
 
         # Check the distro and set the auto_installer flag according
-        if 'SLE' in self.distro_tree.distro.name:
+        if "SUSE" in str(self.distro_tree.distro.osversion.osmajor):
             auto_installer = "autoyast"
             install_options.kernel_options['install'] = self.installation.tree_url
-        else:
-            auto_installer = "ks"
 
-        if auto_installer in install_options.kernel_options:
+        if ks_keyword in install_options.kernel_options:
             # Use it as is
             rendered_kickstart = None
-        elif 'SLE' in self.distro_tree.distro.name:
+        elif "SUSE" in str(self.distro_tree.distro.osversion.osmajor):
             kickstart = self.kickstart
             rendered_kickstart = generate_autoinstall(install_options=install_options,
                                                     distro_tree=self.distro_tree,
@@ -2720,7 +2718,7 @@ class Recipe(TaskBase, ActivityMixin):
                                                     ks_appends=ks_appends,
                                                     install_template=kickstart,
                                                     no_template=no_ks_template)
-            install_options.kernel_options[auto_installer] = rendered_kickstart.link
+            install_options.kernel_options[ks_keyword] = rendered_kickstart.link
 
         self.installation.kernel_options = install_options.kernel_options_str
         self.installation.rendered_kickstart = rendered_kickstart

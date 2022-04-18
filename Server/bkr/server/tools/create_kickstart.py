@@ -135,7 +135,7 @@ def main(*args):
                              distro_tree.variant,
                              distro_tree.arch,
                              distro_tree.url_in_lab(lab_controller=system.lab_controller))
-        rendered_kickstart = generate_kickstart(install_options=install_options,
+        rendered_kickstart = generate_autoinstall(install_options=install_options,
                                                 distro_tree=distro_tree,
                                                 installation=installation,
                                                 system=system,
