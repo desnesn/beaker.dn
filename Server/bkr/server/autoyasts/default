@@ -6,7 +6,6 @@
 			<script>
 				<source>
 					<![CDATA[
-						set -x
 						# Some distros have curl in their minimal install set, others have wget.
 						# We define a wrapper function around the best available implementation
 						# so that the rest of the script can use that for making HTTP requests.
@@ -93,8 +92,6 @@
 			<script>
 				<source>
 					<![CDATA[
-						set -x
-						#exit 0
 						# Some distros have curl in their minimal install set, others have wget.
 						# We define a wrapper function around the best available implementation
 						# so that the rest of the script can use that for making HTTP requests.
@@ -276,8 +273,6 @@
 	<script>
 		<source>
 			<![CDATA[
-				set -x
-				#exit 0
 				# Some distros have curl in their minimal install set, others have wget.
 				# We define a wrapper function around the best available implementation
 				# so that the rest of the script can use that for making HTTP requests.
@@ -881,17 +876,17 @@
     </errors>
     <messages>
       <log config:type="boolean">true</log>
-      <show config:type="boolean">true</show>
+      <show config:type="boolean">false</show>
       <timeout config:type="integer">0</timeout>
     </messages>
     <warnings>
       <log config:type="boolean">true</log>
-      <show config:type="boolean">true</show>
+      <show config:type="boolean">false</show>
       <timeout config:type="integer">0</timeout>
     </warnings>
     <yesno_messages>
       <log config:type="boolean">true</log>
-      <show config:type="boolean">true</show>
+      <show config:type="boolean">false</show>
       <timeout config:type="integer">0</timeout>
     </yesno_messages>
   </report>
@@ -925,9 +920,7 @@
     </services>
   </services-manager>
   <software>
-    <image/>
     <install_recommended config:type="boolean">true</install_recommended>
-    <instsource/>
     <packages config:type="list">
       <package>autoyast2-installation</package>
       <package>autoyast2</package>
@@ -949,10 +942,10 @@
       <package>btrfsprogs</package>
 			<package>tcpdump</package>
     </packages>
-    <patterns config:type="list">
+    <!--<patterns config:type="list">
       <pattern>base</pattern>
       <pattern>minimal_base</pattern>
-    </patterns>
+    </patterns>-->
     <products config:type="list">
       <product>SLES</product>
     </products>
