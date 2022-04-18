@@ -1,11 +1,3 @@
-{% if distro.osversion.osmajor.name == 'Fedora' %}
-# Disable yum repos supplied by fedora-release in favour of Beaker-supplied repos
-# (this will match the repos used during installation).
-sed -i -e '/\[fedora\]/,/^\[/s/enabled=1/enabled=0/' /etc/yum.repos.d/fedora.repo
-{% if no_updates_repos is defined%}
-sed -i -e '/\[updates\]/,/^\[/s/enabled=1/enabled=0/' /etc/yum.repos.d/fedora-updates.repo
-{% endif %}
-{% endif %}
 set -x
 {% snippet 'fetch_wrapper' %}
 
