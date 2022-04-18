@@ -316,6 +316,7 @@
 				cp /etc/os-release /etc/redhat-release
 				BOOT_DISK="$(df / | tail -n1 | cut -d' ' -f1)"
 				bootlist -m normal -o eth0 bserver=0.0.0.0 client=0.0.0.0 gateway=0.0.0.0 "$(ofpathname ${BOOT_DISK} | cut -d':' -f1)"
+				hostnamectl --static set-hostname {{ system.fqdn }}
 
 				systemctl daemon-reload
 				service restraintd start
