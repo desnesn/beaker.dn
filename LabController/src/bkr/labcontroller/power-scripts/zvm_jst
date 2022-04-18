@@ -1,0 +1,2 @@
+#!/bin/sh
+/usr/sbin/fence_zvm_jst -a "$power_address" -u "$power_user" -p "$power_pass" -o "$power_mode"

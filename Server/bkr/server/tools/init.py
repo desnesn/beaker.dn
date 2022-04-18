@@ -166,7 +166,7 @@ def populate_db(user_name=None, password=None, user_display_name=None,
 
     # Setup Hypervisors Table
     if Hypervisor.query.count() == 0:
-        for h in [u'KVM', u'Xen', u'HyperV', u'VMWare', u'PowerVM']:
+        for h in [u'KVM', u'Xen', u'HyperV', u'VMWare', u'PowerVM', u'zVM']:
             session.add(Hypervisor(hypervisor=h))
 
     # Setup kernel_type Table
@@ -187,7 +187,7 @@ def populate_db(user_name=None, password=None, user_display_name=None,
         for power_type in [u'apc_snmp', u'apc_snmp_then_etherwake',
                            u'bladecenter', u'bladepap', u'drac', u'ether_wake', u'hyper-v',
                            u'ilo', u'integrity', u'ipmilan', u'ipmitool', u'lpar', u'obmcutil',
-                           u'rsa', u'virsh', u'wti']:
+                           u'rsa', u'virsh', u'wti', u'zvm_jst']:
             session.add(PowerType(power_type))
 
     # Setup key types
