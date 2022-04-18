@@ -308,6 +308,7 @@
 				zypper addrepo -G {{ absolute_url('/', labdomain=True).replace("https","http") }}repos/{{ recipe.id }} beaker-tasks
 				zypper addrepo -G "{{ absolute_url('/', labdomain=True).replace("https","http") }}harness/{{ distro.osversion.osmajor }}" harness
 				zypper addrepo -G http://{{ lab_controller.fqdn }}/sles_images/{{ distro_tree.distro.name }}/Module-Python2 module-python2
+				zypper addrepo -G http://{{ lab_controller.fqdn }}/sles_images/{{ distro_tree.distro.name }}/Module-Development-Tools module-development-tools
 				zypper refresh
 
 				zypper install -y selinux-tools make gcc libsoup libarchive13 python-pyOpenSSL
