@@ -10,7 +10,7 @@ import xmlrpclib
 import string
 import ConfigParser
 import getopt
-import urlparse
+from urlparse import urlparse, parse_qs
 from optparse import OptionParser, OptionGroup
 import urllib2
 import logging
@@ -944,25 +944,38 @@ class TreeInfoMixin(object):
         pass
 
     def find_common_repos(self, repo_base, arch):
-        """
-        RHEL6 repos
-        ../../optional/<ARCH>/os/repodata
-        ../../optional/<ARCH>/debug/repodata
-        ../debug/repodata
-        """
-        repo_paths = [('debuginfo',
-                       'debug',
-                       '../debug'),
-                      ('optional-debuginfo',
-                       'debug',
-                       '../../optional/%s/debug' % arch),
-                      ('optional',
-                       'optional',
-                       '../../optional/%s/os' % arch),
-                     ]
+        if not "centos" in repo_base:
+	    """
+	    RHEL6 repos
+	    ../../optional/<ARCH>/os/repodata
+	    ../../optional/<ARCH>/debug/repodata
+	    ../debug/repodata
+	    """
+	    repo_paths = [('debuginfo',
+	                   'debug',
+	                   '../debug'),
+	                  ('optional-debuginfo',
+	                   'debug',
+	                   '../../optional/%s/debug' % arch),
+	                  ('optional',
+	                   'optional',
+	                   '../../optional/%s/os' % arch),
+	                 ]
+        else:
+            repo_paths = [('BaseOS','variant','../../../BaseOS/%s/os' % arch),
+                          ('AppStream','variant','../../../AppStream/%s/os' % arch),
+                          ('BaseOS-debuginfo','debug','../../../BaseOS/%s/debug/tree' % arch),
+                          ('AppStream-debuginfo','debug','../../../AppStream/%s/debug/tree' % arch)]
+
         repos = []
         for repo in repo_paths:
-            if url_exists(os.path.join(repo_base, repo[2], 'repodata')):
+            url = os.path.join(repo_base, repo[2], 'repodata')
+
+            if "centos" in repo_base:
+                up = urlparse(url)
+                url=up.scheme + '://' + up.netloc + '/' + os.path.abspath(up.path)
+
+            if url_exists(url):
                 repos.append(dict(
                                   repoid=repo[0],
                                   type=repo[1],
