@@ -2673,7 +2673,7 @@ class Recipe(TaskBase, ActivityMixin):
                                                     no_template=no_ks_template)
             install_options.kernel_options[auto_installer] = rendered_kickstart.link
         else:
-            if not no_ks_template:
+            if self.kickstart and not no_ks_template:
                 # add in cobbler packages snippet...
                 packages_slot = 0
                 nopackages = True
