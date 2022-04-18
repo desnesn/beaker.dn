@@ -3,24 +3,24 @@
 # so that the rest of the script can use that for making HTTP requests.
 if command -v curl >/dev/null ; then
     # Older curl versions lack --retry
-    if curl --help 2>&1 | grep -q .*--retry ; then
+    if curl -k --help 2>&1 | grep -q .*--retry ; then
         function fetch() {
-            curl -L --retry 20 --remote-time -o "$1" "$2"
+            curl -k -L --retry 20 --remote-time -o "$1" "$2"
         }
     else
         function fetch() {
-            curl -L --remote-time -o "$1" "$2"
+            curl -k -L --remote-time -o "$1" "$2"
         }
     fi
-elif command -v wget >/dev/null ; then
+elif command -v wget --no-check-certificate >/dev/null ; then
     # In Anaconda images wget is actually busybox
-    if wget --help 2>&1 | grep -q BusyBox ; then
+    if wget --no-check-certificate --help 2>&1 | grep -q BusyBox ; then
         function fetch() {
-            wget -O "$1" "$2"
+            wget --no-check-certificate -O "$1" "$2"
         }
     else
         function fetch() {
-            wget --tries 20 -O "$1" "$2"
+            wget --no-check-certificate --tries 20 -O "$1" "$2"
         }
     fi
 else

@@ -11,24 +11,24 @@
 						# so that the rest of the script can use that for making HTTP requests.
 						if command -v curl >/dev/null ; then
 						    # Older curl versions lack --retry
-						    if curl --help 2>&1 | grep -q .*--retry ; then
+						    if curl -k --help 2>&1 | grep -q .*--retry ; then
 						        function fetch() {
-						            curl -L --retry 20 --remote-time -o "$1" "$2"
+						            curl -k -L --retry 20 --remote-time -o "$1" "$2"
 						        }
 						    else
 						        function fetch() {
-						            curl -L --remote-time -o "$1" "$2"
+						            curl -k -L --remote-time -o "$1" "$2"
 						        }
 						    fi
-						elif command -v wget >/dev/null ; then
+						elif command -v wget --no-check-certificate >/dev/null ; then
 						    # In Anaconda images wget is actually busybox
-						    if wget --help 2>&1 | grep -q BusyBox ; then
+						    if wget --no-check-certificate --help 2>&1 | grep -q BusyBox ; then
 						        function fetch() {
-						            wget -O "$1" "$2"
+						            wget --no-check-certificate -O "$1" "$2"
 						        }
 						    else
 						        function fetch() {
-						            wget --tries 20 -O "$1" "$2"
+						            wget --no-check-certificate --tries 20 -O "$1" "$2"
 						        }
 						    fi
 						else
@@ -39,7 +39,7 @@
 						fi
 
 						# Check in with Beaker Server
-						fetch - https://{{ lab_controller.fqdn }}:8000/install_start/{{ recipe.id }}
+						fetch - http://{{ lab_controller.fqdn }}:8000/install_start/{{ recipe.id }}
 
 						if command -v python3 >/dev/null ; then
 						   fetch /tmp/anamon https://{{ lab_controller.fqdn }}/beaker/anamon3
@@ -82,7 +82,7 @@
                                                        REPORTED_FQDN=$(find_fqdn)
                                                fi
 
-						fetch - "https://{{ lab_controller.fqdn }}:8000/nopxe/$REPORTED_FQDN"
+						fetch - "http://{{ lab_controller.fqdn }}:8000/nopxe/$REPORTED_FQDN"
 						]]>
 				</source>
 			</script>
@@ -97,24 +97,24 @@
 						# so that the rest of the script can use that for making HTTP requests.
 						if command -v curl >/dev/null ; then
 						    # Older curl versions lack --retry
-						    if curl --help 2>&1 | grep -q .*--retry ; then
+						    if curl -k --help 2>&1 | grep -q .*--retry ; then
 						        function fetch() {
-						            curl -L --retry 20 --remote-time -o "$1" "$2"
+						            curl -k -L --retry 20 --remote-time -o "$1" "$2"
 						        }
 						    else
 						        function fetch() {
-						            curl -L --remote-time -o "$1" "$2"
+						            curl -k -L --remote-time -o "$1" "$2"
 						        }
 						    fi
-						elif command -v wget >/dev/null ; then
+						elif command -v wget --no-check-certificate >/dev/null ; then
 						    # In Anaconda images wget is actually busybox
-						    if wget --help 2>&1 | grep -q BusyBox ; then
+						    if wget --no-check-certificate --help 2>&1 | grep -q BusyBox ; then
 						        function fetch() {
-						            wget -O "$1" "$2"
+						            wget --no-check-certificate -O "$1" "$2"
 						        }
 						    else
 						        function fetch() {
-						            wget --tries 20 -O "$1" "$2"
+						            wget --no-check-certificate --tries 20 -O "$1" "$2"
 						        }
 						    fi
 						else
@@ -153,7 +153,7 @@
                                                if [ "${REPORTED_FQDN}" -eq "" ];then
                                                        REPORTED_FQDN=$(find_fqdn)
                                                fi
-						fetch - "https://{{ lab_controller.fqdn }}/install_done/{{ recipe.id }}/$REPORTED_FQDN"
+						fetch - "http://{{ lab_controller.fqdn }}/install_done/{{ recipe.id }}/$REPORTED_FQDN"
 
 						echo {{ recipe.id }} > /root/RECIPE.TXT
 
@@ -278,24 +278,24 @@
 				# so that the rest of the script can use that for making HTTP requests.
 				if command -v curl >/dev/null ; then
 				    # Older curl versions lack --retry
-				    if curl --help 2>&1 | grep -q .*--retry ; then
+				    if curl -k --help 2>&1 | grep -q .*--retry ; then
 				        function fetch() {
-				            curl -L --retry 20 --remote-time -o "$1" "$2"
+				            curl -k -L --retry 20 --remote-time -o "$1" "$2"
 				        }
 				    else
 				        function fetch() {
-				            curl -L --remote-time -o "$1" "$2"
+				            curl -k -L --remote-time -o "$1" "$2"
 				        }
 				    fi
-				elif command -v wget >/dev/null ; then
+				elif command -v wget --no-check-certificate >/dev/null ; then
 				    # In Anaconda images wget is actually busybox
-				    if wget --help 2>&1 | grep -q BusyBox ; then
+				    if wget --no-check-certificate --help 2>&1 | grep -q BusyBox ; then
 				        function fetch() {
-				            wget -O "$1" "$2"
+				            wget --no-check-certificate -O "$1" "$2"
 				        }
 				    else
 				        function fetch() {
-				            wget --tries 20 -O "$1" "$2"
+				            wget --no-check-certificate --tries 20 -O "$1" "$2"
 				        }
 				    fi
 				else
