@@ -222,27 +222,34 @@ template_env.globals.update({
 })
 
 
-def kickstart_template(osmajor):
-    candidates = [
-        'kickstarts/%s' % osmajor,
-        'kickstarts/%s' % osmajor.rstrip(string.digits),
-        'kickstarts/default',
+def installer_template(osmajor):
+    if "SUSE" in osmajor:
+        candidates = [
+            'autoyasts/%s' % osmajor,
+            'autoyasts/%s' % osmajor.rstrip(string.digits),
+            'autoyasts/default',
+    ]
+    else:
+        candidates = [
+            'kickstarts/%s' % osmajor,
+            'kickstarts/%s' % osmajor.rstrip(string.digits),
+            'kickstarts/default',
     ]
     for candidate in candidates:
         try:
             return template_env.get_template(candidate)
         except jinja2.TemplateNotFound:
             continue
-    raise ValueError('No kickstart template found for %s, tried: %s'
+    raise ValueError('No installer template found for %s, tried: %s'
                      % (osmajor, ', '.join(candidates)))
 
 
-def generate_kickstart(install_options,
+def generate_autoinstall(install_options,
                        distro_tree,
                        system, user,
                        recipe=None,
                        ks_appends=None,
-                       kickstart=None,
+                       install_template=None,
                        installation=None,
                        no_template=None):
     if recipe:
@@ -334,22 +341,22 @@ def generate_kickstart(install_options,
     context['snippet'] = snippet
 
     with TemplateRenderingEnvironment():
-        if kickstart:
-            template_string = ("{% snippet 'install_method' %}\n" + kickstart
+        if install_template:
+            template_string = ("{% snippet 'install_method' %}\n" + install_template
                                if not no_template else kickstart)
             template = template_env.from_string(template_string)
             result = template.render(restricted_context)
         else:
-            template = kickstart_template(installation.osmajor)
+            template = installer_template(installation.osmajor)
             result = template.render(context)
 
-    rendered_kickstart = RenderedKickstart(kickstart=result)
-    session.add(rendered_kickstart)
+    rendered_template = RenderedKickstart(kickstart=result)
+    session.add(rendered_template)
     try:
         session.flush()  # so that it has an id
     except DataError:
-        raise ValueError('Kickstart generation failed. Please report this issue.')
-    return rendered_kickstart
+        raise ValueError('Template generation failed. Please report this issue.')
+    return rendered_template
 
 
 @app.route('/kickstart/<id>', methods=['GET'])

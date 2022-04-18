@@ -1527,7 +1527,7 @@ class System(DeclarativeMappedObject, ActivityMixin):
                 # that to prevent the recipe from being stopped, so we log 
                 # and ignore any errors.
                 try:
-                    from bkr.server.kickstart import generate_kickstart
+                    from bkr.server.autoinstall import generate_autoinstall
                     from bkr.server.model.installation import Installation
                     install_options = self.manual_provision_install_options(
                             self.reprovision_distro_tree)
@@ -1536,7 +1536,7 @@ class System(DeclarativeMappedObject, ActivityMixin):
 
                     ks_keyword = install_options.ks_meta.get('ks_keyword', 'inst.ks')
                     if ks_keyword not in install_options.kernel_options:
-                        rendered_kickstart = generate_kickstart(
+                        rendered_kickstart = generate_autoinstall(
                             install_options=install_options,
                             installation=installation,
                             distro_tree=self.reprovision_distro_tree,

@@ -2623,7 +2623,7 @@ class Recipe(TaskBase, ActivityMixin):
         return InstallOptions.reduce(sources)
 
     def provision(self):
-        from bkr.server.kickstart import generate_kickstart
+        from bkr.server.autoinstall import generate_autoinstall
         install_options = self.reduced_install_options()
         if self.distro_tree:
             self.installation.tree_url = self.distro_tree.url_in_lab(
@@ -2651,11 +2651,29 @@ class Recipe(TaskBase, ActivityMixin):
         no_ks_template = 'no_ks_template' in install_options.ks_meta
         ks_appends = None
 
-        if ks_keyword in install_options.kernel_options:
+        # Check the distro and set the auto_installer flag according
+        if 'SLE' in self.distro_tree.distro.name:
+            auto_installer = "autoyast"
+            install_options.kernel_options['install'] = self.installation.tree_url
+        else:
+            auto_installer = "ks"
+
+        if auto_installer in install_options.kernel_options:
             # Use it as is
             rendered_kickstart = None
+        elif 'SLE' in self.distro_tree.distro.name:
+            kickstart = self.kickstart
+            rendered_kickstart = generate_autoinstall(install_options=install_options,
+                                                    distro_tree=self.distro_tree,
+                                                    system=getattr(self.resource, 'system', None),
+                                                    user=self.recipeset.job.owner,
+                                                    recipe=self,
+                                                    ks_appends=ks_appends,
+                                                    install_template=kickstart,
+                                                    no_template=no_ks_template)
+            install_options.kernel_options[auto_installer] = rendered_kickstart.link
         else:
-            if self.kickstart and not no_ks_template:
+            if not no_ks_template:
                 # add in cobbler packages snippet...
                 packages_slot = 0
                 nopackages = True
@@ -2694,15 +2712,15 @@ class Recipe(TaskBase, ActivityMixin):
             else:
                 kickstart = None
                 ks_appends = [ks_append.ks_append for ks_append in self.ks_appends]
-            rendered_kickstart = generate_kickstart(install_options=install_options,
+            rendered_kickstart = generate_autoinstall(install_options=install_options,
                                                     distro_tree=self.distro_tree,
                                                     system=getattr(self.resource, 'system', None),
                                                     user=self.recipeset.job.owner,
                                                     recipe=self,
                                                     ks_appends=ks_appends,
-                                                    kickstart=kickstart,
+                                                    install_template=kickstart,
                                                     no_template=no_ks_template)
-            install_options.kernel_options[ks_keyword] = rendered_kickstart.link
+            install_options.kernel_options[auto_installer] = rendered_kickstart.link
 
         self.installation.kernel_options = install_options.kernel_options_str
         self.installation.rendered_kickstart = rendered_kickstart

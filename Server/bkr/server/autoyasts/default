@@ -1,0 +1,1222 @@
+<?xml version="1.0"?>
+<!DOCTYPE profile>
+<profile xmlns="http://www.suse.com/1.0/yast2ns" xmlns:config="http://www.suse.com/1.0/configns">
+	<scripts>
+		<pre-scripts config:type="list">
+			<script>
+				<source>
+					<![CDATA[
+						set -x
+						# Some distros have curl in their minimal install set, others have wget.
+						# We define a wrapper function around the best available implementation
+						# so that the rest of the script can use that for making HTTP requests.
+						if command -v curl >/dev/null ; then
+						    # Older curl versions lack --retry
+						    if curl --help 2>&1 | grep -q .*--retry ; then
+						        function fetch() {
+						            curl -L --retry 20 --remote-time -o "$1" "$2"
+						        }
+						    else
+						        function fetch() {
+						            curl -L --remote-time -o "$1" "$2"
+						        }
+						    fi
+						elif command -v wget >/dev/null ; then
+						    # In Anaconda images wget is actually busybox
+						    if wget --help 2>&1 | grep -q BusyBox ; then
+						        function fetch() {
+						            wget -O "$1" "$2"
+						        }
+						    else
+						        function fetch() {
+						            wget --tries 20 -O "$1" "$2"
+						        }
+						    fi
+						else
+						    echo "No HTTP client command available!"
+						    function fetch() {
+						        false
+						    }
+						fi
+
+						# Check in with Beaker Server
+						fetch - https://{{ lab_controller.fqdn }}:8000/install_start/{{ recipe.id }}
+
+						if command -v python3 >/dev/null ; then
+						   fetch /tmp/anamon https://{{ lab_controller.fqdn }}/beaker/anamon3
+						   python_command="python3"
+						elif [ -f /usr/libexec/platform-python ] && \
+						     /usr/libexec/platform-python --version 2>&1 | grep -q "Python 3" ; then
+						   fetch /tmp/anamon https://{{ lab_controller.fqdn }}/beaker/anamon3
+						   python_command="/usr/libexec/platform-python"
+						else
+						   fetch /tmp/anamon https://{{ lab_controller.fqdn }}/beaker/anamon
+						   python_command="python"
+						fi
+						$python_command /tmp/anamon --recipe-id {{ recipe.id }} --xmlrpc-url 'https://{{ lab_controller.fqdn }}/RPC2'
+
+
+						# We will try a number of different places to figure out the system's FQDN.
+                                                # In all cases we will only accept a real FQDN (no "localhost", and must have
+                                                # a domain portion). DNS is our preferred source, otherwise the installer
+                                                # should have stored a hostname in /etc based on the kickstart or DHCP info.
+                                                # As a last resort we will use the system's first IP address.
+                                                function find_fqdn() {
+                                                    local fqdn=
+                                                    # hostname -f is the most future-proof approach, but it isn't always reliable
+                                                    fqdn=$(hostname -f)
+                                                    if [[ "$fqdn" == *.* && "$fqdn" != localhost.* ]] ; then echo "$fqdn" ; return ; fi
+                                                    # Preferred fallback if the OS is recent enough to provide it
+                                                    fqdn=$(cat /etc/hostname)
+                                                    if [[ "$fqdn" == *.* && "$fqdn" != localhost.* ]] ; then echo "$fqdn" ; return ; fi
+                                                    # Red Hat-based systems prior to systemd will have this
+                                                    fqdn=$(grep ^HOSTNAME= /etc/sysconfig/network | cut -f2- -d=)
+                                                    if [[ "$fqdn" == *.* && "$fqdn" != localhost.* ]] ; then echo "$fqdn" ; return ; fi
+                                                    # Getting desperate... pick the first local IP address
+                                                    ipaddr=$(hostname -i)
+                                                    if [[ "$ipaddr" != "127.0.0.1" ]] ; then echo "$ipaddr" ; return ; fi
+                                                    # Getting even more desperate (RHEL5 and earlier)
+                                                    ip addr show | grep -v ' lo' | grep -Po '(?<=inet )[0-9.]+'
+                                                }
+                                                REPORTED_FQDN="{% if system is defined and system.fqdn %}{{ system.fqdn }}{% endif %}"
+						if [ "${REPORTED_FQDN}" -eq "" ];then
+                                                       REPORTED_FQDN=$(find_fqdn)
+                                               fi
+
+						fetch - "https://{{ lab_controller.fqdn }}:8000/nopxe/$REPORTED_FQDN"
+						]]>
+				</source>
+			</script>
+		</pre-scripts>
+
+		<post-scripts config:type="list">
+			<script>
+				<source>
+					<![CDATA[
+						set -x
+						#exit 0
+						# Some distros have curl in their minimal install set, others have wget.
+						# We define a wrapper function around the best available implementation
+						# so that the rest of the script can use that for making HTTP requests.
+						if command -v curl >/dev/null ; then
+						    # Older curl versions lack --retry
+						    if curl --help 2>&1 | grep -q .*--retry ; then
+						        function fetch() {
+						            curl -L --retry 20 --remote-time -o "$1" "$2"
+						        }
+						    else
+						        function fetch() {
+						            curl -L --remote-time -o "$1" "$2"
+						        }
+						    fi
+						elif command -v wget >/dev/null ; then
+						    # In Anaconda images wget is actually busybox
+						    if wget --help 2>&1 | grep -q BusyBox ; then
+						        function fetch() {
+						            wget -O "$1" "$2"
+						        }
+						    else
+						        function fetch() {
+						            wget --tries 20 -O "$1" "$2"
+						        }
+						    fi
+						else
+						    echo "No HTTP client command available!"
+						    function fetch() {
+						        false
+						    }
+						fi
+
+						# Check in with Beaker Server, let it know our hostname, and
+						# record our install time.
+
+						# We will try a number of different places to figure out the system's FQDN.
+						# In all cases we will only accept a real FQDN (no "localhost", and must have
+						# a domain portion). DNS is our preferred source, otherwise the installer
+						# should have stored a hostname in /etc based on the kickstart or DHCP info.
+						# As a last resort we will use the system's first IP address.
+						function find_fqdn() {
+						    local fqdn=
+						    # hostname -f is the most future-proof approach, but it isn't always reliable
+						    fqdn=$(hostname -f)
+						    if [[ "$fqdn" == *.* && "$fqdn" != localhost.* ]] ; then echo "$fqdn" ; return ; fi
+						    # Preferred fallback if the OS is recent enough to provide it
+						    fqdn=$(cat /etc/hostname)
+						    if [[ "$fqdn" == *.* && "$fqdn" != localhost.* ]] ; then echo "$fqdn" ; return ; fi
+						    # Red Hat-based systems prior to systemd will have this
+						    fqdn=$(grep ^HOSTNAME= /etc/sysconfig/network | cut -f2- -d=)
+						    if [[ "$fqdn" == *.* && "$fqdn" != localhost.* ]] ; then echo "$fqdn" ; return ; fi
+						    # Getting desperate... pick the first local IP address
+						    ipaddr=$(hostname -i)
+						    if [[ "$ipaddr" != "127.0.0.1" ]] ; then echo "$ipaddr" ; return ; fi
+						    # Getting even more desperate (RHEL5 and earlier)
+						    ip addr show | grep -v ' lo' | grep -Po '(?<=inet )[0-9.]+'
+						}
+						REPORTED_FQDN="{% if system is defined and system.fqdn %}{{ system.fqdn }}{% endif %}"
+                                               if [ "${REPORTED_FQDN}" -eq "" ];then
+                                                       REPORTED_FQDN=$(find_fqdn)
+                                               fi
+						fetch - "https://{{ lab_controller.fqdn }}/install_done/{{ recipe.id }}/$REPORTED_FQDN"
+
+						echo {{ recipe.id }} > /root/RECIPE.TXT
+
+						# If netboot_method= is found in /proc/cmdline record it to /root
+						netboot_method=$(grep -oP "(?<=netboot_method=)[^\s]+(?=)" /proc/cmdline)
+						if [ -n "$netboot_method" ]; then
+						echo $netboot_method >/root/NETBOOT_METHOD.TXT
+						fi
+
+						# Enable post-install boot notification
+
+						echo "export BEAKER_LAB_CONTROLLER_URL=\"http://{{ lab_controller.fqdn }}:8000\"" >> /etc/profile.d/beaker-harness-env.sh
+						echo "export BEAKER_LAB_CONTROLLER={{ lab_controller.fqdn }}" >> /etc/profile.d/beaker-harness-env.sh
+						echo "export BEAKER_RECIPE_ID={{ recipe.id }}" >> /etc/profile.d/beaker-harness-env.sh
+						echo "export BEAKER_HUB_URL=\"https://{{ lab_controller.fqdn }}\"" >> /etc/profile.d/beaker-harness-env.sh
+						echo "export RHTS_OPTION_COMPATIBLE=" >> /etc/profile.d/beaker-harness-env.sh
+
+
+						if [ -f /etc/sysconfig/readahead ] ; then
+						    :
+						    cat >>/etc/sysconfig/readahead <<EOF
+
+							    # readahead conflicts with auditd, see bug 561486 for detailed explanation.
+							    #
+							    # Should a task need to change these settings, it must revert to this state
+							    # when test is done.
+
+							    READAHEAD_COLLECT="no"
+							    READAHEAD_COLLECT_ON_RPM="no"
+							    EOF
+							    fi
+							    systemctl disable systemd-readahead-collect.service
+
+							    if [ -e /etc/sysconfig/ntpdate ] ; then
+							        systemctl enable ntpdate.service
+							    fi
+							    if [ -e "/etc/sysconfig/ntpd" ]; then
+							        systemctl enable ntpd.service
+							        GOT_G=$(/bin/cat /etc/sysconfig/ntpd | grep -E '^OPTIONS' | grep '\-g')
+
+							        if [ -z "$GOT_G" ]; then
+							            /bin/sed -i -r 's/(^OPTIONS\s*=\s*)(['\''|"])(.+)$/\1\2\-x \3 /' /etc/sysconfig/ntpd
+							        fi
+							    fi
+							    if [ -e /etc/chrony.conf ] ; then
+							        cp /etc/chrony.conf{,.orig}
+							        # use only DHCP-provided time servers, no default pool servers
+							        sed -i '/^server /d' /etc/chrony.conf
+							        cp /etc/sysconfig/network{,.orig}
+							        # setting iburst should speed up initial sync
+							        # https://bugzilla.redhat.com/show_bug.cgi?id=787042#c12
+							        echo NTPSERVERARGS=iburst >>/etc/sysconfig/network
+							        systemctl disable ntpd.service
+							        systemctl disable ntpdate.service
+							        systemctl enable chronyd.service
+							        systemctl enable chrony-wait.service
+							    fi
+
+
+									cat >> /etc/profile.d/task-overrides-rhts.sh <<END
+										export RHTS_OPTION_COMPATIBLE=
+										export RHTS_OPTION_COMPAT_SERVICE=
+										END
+										# no snippet data for SUSELinuxEnterprise15 SP1_post
+										# no snippet data for SUSELinuxEnterprise15 SP_post
+										# no snippet data for system_post
+
+							    cat <<"EOF" >/etc/profile.d/beaker-harness-env.sh
+							    export BEAKER_LAB_CONTROLLER_URL="http://{{ lab_controller.fqdn }}:8000/"
+							    export BEAKER_LAB_CONTROLLER={{ lab_controller.fqdn }}
+							    export BEAKER_RECIPE_ID={{ recipe.id }}
+							    export BEAKER_HUB_URL="https://{{ lab_controller.fqdn }}"
+							    EOF
+							    cat <<"EOF" >/etc/profile.d/beaker-harness-env.csh
+							    setenv BEAKER_LAB_CONTROLLER_URL "http://{{ lab_controller.fqdn }}:8000/"
+							    setenv BEAKER_LAB_CONTROLLER {{ lab_controller.fqdn }}
+							    setenv BEAKER_RECIPE_ID {{ recipe.id }}
+							    setenv BEAKER_HUB_URL "https://{{ lab_controller.fqdn }}"
+							    EOF
+
+
+							    cat <<"EOF" >/etc/profile.d/beaker.sh
+							    export BEAKER="{{ absolute_url('/', labdomain=True) }}"
+							    export BEAKER_JOB_WHITEBOARD=''
+							    export BEAKER_RECIPE_WHITEBOARD=''
+							    EOF
+							    cat <<"EOF" >/etc/profile.d/beaker.csh
+							    setenv BEAKER "{{ absolute_url('/', labdomain=True) }}"
+							    setenv BEAKER_JOB_WHITEBOARD ''
+							    setenv BEAKER_RECIPE_WHITEBOARD ''
+							    EOF
+							    cat << EOF > /etc/profile.d/rh-env.sh
+							    export LAB_CONTROLLER={{ lab_controller.fqdn }}
+							    export DUMPSERVER=
+							    export LOOKASIDE=
+							    export BUILDURL=
+							    EOF
+							    cat << EOF > /etc/profile.d/rh-env.csh
+							    setenv LAB_CONTROLLER {{ lab_controller.fqdn }}
+							    setenv DUMPSERVER
+							    setenv LOOKASIDE
+							    setenv BUILDURL
+							    EOF
+							    # Disable rhts-compat for Fedora15/RHEL7 and newer.
+							    cat >> /etc/profile.d/task-overrides-rhts.sh <<END
+								    export RHTS_OPTION_COMPATIBLE=
+								    export RHTS_OPTION_COMPAT_SERVICE=
+								    END
+								    # no snippet data for SUSELinuxEnterprise15 SP1_post
+								    # no snippet data for SUSELinuxEnterprise15 SP_post
+								    # no snippet data for system_post
+						]]>
+				</source>
+			</script>
+		</post-scripts>
+    <init-scripts config:type="list">
+	<script>
+		<source>
+			<![CDATA[
+				set -x
+				#exit 0
+				# Some distros have curl in their minimal install set, others have wget.
+				# We define a wrapper function around the best available implementation
+				# so that the rest of the script can use that for making HTTP requests.
+				if command -v curl >/dev/null ; then
+				    # Older curl versions lack --retry
+				    if curl --help 2>&1 | grep -q .*--retry ; then
+				        function fetch() {
+				            curl -L --retry 20 --remote-time -o "$1" "$2"
+				        }
+				    else
+				        function fetch() {
+				            curl -L --remote-time -o "$1" "$2"
+				        }
+				    fi
+				elif command -v wget >/dev/null ; then
+				    # In Anaconda images wget is actually busybox
+				    if wget --help 2>&1 | grep -q BusyBox ; then
+				        function fetch() {
+				            wget -O "$1" "$2"
+				        }
+				    else
+				        function fetch() {
+				            wget --tries 20 -O "$1" "$2"
+				        }
+				    fi
+				else
+				    echo "No HTTP client command available!"
+				    function fetch() {
+				        false
+				    }
+				fi
+				# TODO: fix https in the future
+				zypper addrepo -G {{ absolute_url('/', labdomain=True).replace("https","http") }}repos/{{ recipe.id }} beaker-tasks
+				zypper addrepo -G "{{ absolute_url('/', labdomain=True).replace("https","http") }}harness/{{ distro.osversion.osmajor }}" harness
+				zypper addrepo -G http://{{ lab_controller.fqdn }}/sles_images/{{ distro_tree.distro.name }}/Module-Python2 module-python2
+				zypper refresh
+
+				zypper install -y selinux-tools make gcc libsoup libarchive13 python-pyOpenSSL
+				zypper install -y restraint restraint-rhts
+				ln -s /bin/bash /usr/bin/bash
+				cp /etc/os-release /etc/redhat-release
+
+				bootlist -m normal -o eth0 bserver=0.0.0.0 client=0.0.0.0 gateway=0.0.0.0 "$(df / | tail -n1 | cut -d' ' -f 1)"
+
+				systemctl daemon-reload
+				service restraintd start
+
+				fetch - http://{{ lab_controller.fqdn }}:8000/postinstall_done/{{ recipe.id }}
+				# Give anamon a chance to finish collecting logs.
+				sleep 10
+
+
+				]]>
+		</source>
+	</script>
+    </init-scripts>
+  </scripts>
+  <add-on>
+    <add_on_products config:type="list">
+    <listentry>
+	    <media_url>http://{{ lab_controller.fqdn }}/sles_images/{{ distro_tree.distro.name }}</media_url>
+	 <product_dir>/Module-Basesystem</product_dir>
+	<product>sle-module-basesystem</product>
+    </listentry>
+   </add_on_products>
+  </add-on>
+  <bootloader>
+    <global>
+      <append>splash=verbose mitigations=auto quiet crashkernel=197M</append>
+      <cpu_mitigations>auto</cpu_mitigations>
+      <gfxmode>auto</gfxmode>
+      <hiddenmenu>false</hiddenmenu>
+      <os_prober>false</os_prober>
+      <terminal>console</terminal>
+      <timeout config:type="integer">8</timeout>
+      <trusted_grub>false</trusted_grub>
+      <xen_kernel_append>crashkernel=197M\&lt;4G</xen_kernel_append>
+    </global>
+    <loader_type>grub2</loader_type>
+  </bootloader>
+  <deploy_image>
+    <image_installation config:type="boolean">false</image_installation>
+  </deploy_image>
+  <firewall>
+    <default_zone>public</default_zone>
+    <enable_firewall config:type="boolean">true</enable_firewall>
+    <log_denied_packets>off</log_denied_packets>
+    <start_firewall config:type="boolean">true</start_firewall>
+    <zones config:type="list">
+      <zone>
+        <description>Unsolicited incoming network packets are rejected. Incoming packets that are related to outgoing network connections are accepted. Outgoing network connections are allowed.</description>
+        <interfaces config:type="list"/>
+        <masquerade config:type="boolean">false</masquerade>
+        <name>block</name>
+        <ports config:type="list"/>
+        <protocols config:type="list"/>
+        <services config:type="list"/>
+        <short>Block</short>
+        <target>%%REJECT%%</target>
+      </zone>
+      <zone>
+        <description>For computers in your demilitarized zone that are publicly-accessible with limited access to your internal network. Only selected incoming connections are accepted.</description>
+        <interfaces config:type="list"/>
+        <masquerade config:type="boolean">false</masquerade>
+        <name>dmz</name>
+        <ports config:type="list"/>
+        <protocols config:type="list"/>
+        <services config:type="list">
+          <service>ssh</service>
+        </services>
+        <short>DMZ</short>
+        <target>default</target>
+      </zone>
+      <zone>
+        <description>Unsolicited incoming network packets are dropped. Incoming packets that are related to outgoing network connections are accepted. Outgoing network connections are allowed.</description>
+        <interfaces config:type="list"/>
+        <masquerade config:type="boolean">false</masquerade>
+        <name>drop</name>
+        <ports config:type="list"/>
+        <protocols config:type="list"/>
+        <services config:type="list"/>
+        <short>Drop</short>
+        <target>DROP</target>
+      </zone>
+      <zone>
+        <description>For use on external networks. You do not trust the other computers on networks to not harm your computer. Only selected incoming connections are accepted.</description>
+        <interfaces config:type="list"/>
+        <masquerade config:type="boolean">true</masquerade>
+        <name>external</name>
+        <ports config:type="list"/>
+        <protocols config:type="list"/>
+        <services config:type="list">
+          <service>ssh</service>
+        </services>
+        <short>External</short>
+        <target>default</target>
+      </zone>
+      <zone>
+        <description>For use in home areas. You mostly trust the other computers on networks to not harm your computer. Only selected incoming connections are accepted.</description>
+        <interfaces config:type="list"/>
+        <masquerade config:type="boolean">false</masquerade>
+        <name>home</name>
+        <ports config:type="list"/>
+        <protocols config:type="list"/>
+        <services config:type="list">
+          <service>ssh</service>
+          <service>mdns</service>
+          <service>samba-client</service>
+          <service>dhcpv6-client</service>
+        </services>
+        <short>Home</short>
+        <target>default</target>
+      </zone>
+      <zone>
+        <description>For use on internal networks. You mostly trust the other computers on the networks to not harm your computer. Only selected incoming connections are accepted.</description>
+        <interfaces config:type="list"/>
+        <masquerade config:type="boolean">false</masquerade>
+        <name>internal</name>
+        <ports config:type="list"/>
+        <protocols config:type="list"/>
+        <services config:type="list">
+          <service>ssh</service>
+          <service>mdns</service>
+          <service>samba-client</service>
+          <service>dhcpv6-client</service>
+        </services>
+        <short>Internal</short>
+        <target>default</target>
+      </zone>
+      <zone>
+        <description>For use in public areas. You do not trust the other computers on networks to not harm your computer. Only selected incoming connections are accepted.</description>
+        <interfaces config:type="list"/>
+        <masquerade config:type="boolean">false</masquerade>
+        <name>public</name>
+        <ports config:type="list"/>
+        <protocols config:type="list"/>
+        <services config:type="list">
+          <service>ssh</service>
+          <service>dhcpv6-client</service>
+        </services>
+        <short>Public</short>
+        <target>default</target>
+      </zone>
+      <zone>
+        <description>All network connections are accepted.</description>
+        <interfaces config:type="list"/>
+        <masquerade config:type="boolean">false</masquerade>
+        <name>trusted</name>
+        <ports config:type="list"/>
+        <protocols config:type="list"/>
+        <services config:type="list"/>
+        <short>Trusted</short>
+        <target>ACCEPT</target>
+      </zone>
+      <zone>
+        <description>For use in work areas. You mostly trust the other computers on networks to not harm your computer. Only selected incoming connections are accepted.</description>
+        <interfaces config:type="list"/>
+        <masquerade config:type="boolean">false</masquerade>
+        <name>work</name>
+        <ports config:type="list"/>
+        <protocols config:type="list"/>
+        <services config:type="list">
+          <service>ssh</service>
+          <service>dhcpv6-client</service>
+        </services>
+        <short>Work</short>
+        <target>default</target>
+      </zone>
+    </zones>
+  </firewall>
+  <general>
+    <ask-list config:type="list"/>
+    <mode>
+      <confirm config:type="boolean">false</confirm>
+    </mode>
+    <proposals config:type="list"/>
+    <signature-handling>
+      <accept_file_without_checksum config:type="boolean">true</accept_file_without_checksum>
+      <accept_non_trusted_gpg_key config:type="boolean">true</accept_non_trusted_gpg_key>
+      <accept_unknown_gpg_key config:type="boolean">true</accept_unknown_gpg_key>
+      <accept_unsigned_file config:type="boolean">true</accept_unsigned_file>
+      <accept_verification_failed config:type="boolean">false</accept_verification_failed>
+      <import_gpg_key config:type="boolean">true</import_gpg_key>
+    </signature-handling>
+    <storage>
+      <start_multipath config:type="boolean">false</start_multipath>
+    </storage>
+  </general>
+  <groups config:type="list">
+    <group>
+      <encrypted config:type="boolean">true</encrypted>
+      <gid>100</gid>
+      <group_password>x</group_password>
+      <groupname>users</groupname>
+      <userlist/>
+    </group>
+    <group>
+      <encrypted config:type="boolean">true</encrypted>
+      <gid>488</gid>
+      <group_password>x</group_password>
+      <groupname>kvm</groupname>
+      <userlist/>
+    </group>
+    <group>
+      <encrypted config:type="boolean">true</encrypted>
+      <gid>479</gid>
+      <group_password>x</group_password>
+      <groupname>polkitd</groupname>
+      <userlist/>
+    </group>
+    <group>
+      <encrypted config:type="boolean">true</encrypted>
+      <gid>483</gid>
+      <group_password>x</group_password>
+      <groupname>systemd-coredump</groupname>
+      <userlist/>
+    </group>
+    <group>
+      <encrypted config:type="boolean">true</encrypted>
+      <gid>496</gid>
+      <group_password>x</group_password>
+      <groupname>kmem</groupname>
+      <userlist/>
+    </group>
+    <group>
+      <encrypted config:type="boolean">true</encrypted>
+      <gid>15</gid>
+      <group_password>x</group_password>
+      <groupname>shadow</groupname>
+      <userlist/>
+    </group>
+    <group>
+      <encrypted config:type="boolean">true</encrypted>
+      <gid>1</gid>
+      <group_password>x</group_password>
+      <groupname>bin</groupname>
+      <userlist>daemon</userlist>
+    </group>
+    <group>
+      <encrypted config:type="boolean">true</encrypted>
+      <gid>486</gid>
+      <group_password>x</group_password>
+      <groupname>tape</groupname>
+      <userlist/>
+    </group>
+    <group>
+      <encrypted config:type="boolean">true</encrypted>
+      <gid>498</gid>
+      <group_password>x</group_password>
+      <groupname>messagebus</groupname>
+      <userlist/>
+    </group>
+    <group>
+      <encrypted config:type="boolean">true</encrypted>
+      <gid>5</gid>
+      <group_password>x</group_password>
+      <groupname>tty</groupname>
+      <userlist/>
+    </group>
+    <group>
+      <encrypted config:type="boolean">true</encrypted>
+      <gid>494</gid>
+      <group_password>x</group_password>
+      <groupname>utmp</groupname>
+      <userlist/>
+    </group>
+    <group>
+      <encrypted config:type="boolean">true</encrypted>
+      <gid>65533</gid>
+      <group_password>x</group_password>
+      <groupname>nogroup</groupname>
+      <userlist>nobody</userlist>
+    </group>
+    <group>
+      <encrypted config:type="boolean">true</encrypted>
+      <gid>495</gid>
+      <group_password>x</group_password>
+      <groupname>lock</groupname>
+      <userlist/>
+    </group>
+    <group>
+      <encrypted config:type="boolean">true</encrypted>
+      <gid>493</gid>
+      <group_password>x</group_password>
+      <groupname>audio</groupname>
+      <userlist/>
+    </group>
+    <group>
+      <encrypted config:type="boolean">true</encrypted>
+      <gid>490</gid>
+      <group_password>x</group_password>
+      <groupname>disk</groupname>
+      <userlist/>
+    </group>
+    <group>
+      <encrypted config:type="boolean">true</encrypted>
+      <gid>491</gid>
+      <group_password>x</group_password>
+      <groupname>dialout</groupname>
+      <userlist/>
+    </group>
+    <group>
+      <encrypted config:type="boolean">true</encrypted>
+      <gid>492</gid>
+      <group_password>x</group_password>
+      <groupname>cdrom</groupname>
+      <userlist/>
+    </group>
+    <group>
+      <encrypted config:type="boolean">true</encrypted>
+      <gid>482</gid>
+      <group_password>x</group_password>
+      <groupname>systemd-timesync</groupname>
+      <userlist/>
+    </group>
+    <group>
+      <encrypted config:type="boolean">true</encrypted>
+      <gid>487</gid>
+      <group_password>x</group_password>
+      <groupname>lp</groupname>
+      <userlist/>
+    </group>
+    <group>
+      <encrypted config:type="boolean">true</encrypted>
+      <gid>485</gid>
+      <group_password>x</group_password>
+      <groupname>video</groupname>
+      <userlist/>
+    </group>
+    <group>
+      <encrypted config:type="boolean">true</encrypted>
+      <gid>481</gid>
+      <group_password>x</group_password>
+      <groupname>sshd</groupname>
+      <userlist/>
+    </group>
+    <group>
+      <encrypted config:type="boolean">true</encrypted>
+      <gid>0</gid>
+      <group_password>x</group_password>
+      <groupname>root</groupname>
+      <userlist/>
+    </group>
+    <group>
+      <encrypted config:type="boolean">true</encrypted>
+      <gid>2</gid>
+      <group_password>x</group_password>
+      <groupname>daemon</groupname>
+      <userlist/>
+    </group>
+    <group>
+      <encrypted config:type="boolean">true</encrypted>
+      <gid>65534</gid>
+      <group_password>x</group_password>
+      <groupname>nobody</groupname>
+      <userlist/>
+    </group>
+    <group>
+      <encrypted config:type="boolean">true</encrypted>
+      <gid>484</gid>
+      <group_password>x</group_password>
+      <groupname>systemd-journal</groupname>
+      <userlist/>
+    </group>
+    <group>
+      <encrypted config:type="boolean">true</encrypted>
+      <gid>497</gid>
+      <group_password>x</group_password>
+      <groupname>wheel</groupname>
+      <userlist/>
+    </group>
+    <group>
+      <encrypted config:type="boolean">true</encrypted>
+      <gid>489</gid>
+      <group_password>x</group_password>
+      <groupname>input</groupname>
+      <userlist/>
+    </group>
+    <group>
+      <encrypted config:type="boolean">true</encrypted>
+      <gid>499</gid>
+      <group_password>x</group_password>
+      <groupname>service</groupname>
+      <userlist/>
+    </group>
+    <group>
+      <encrypted config:type="boolean">true</encrypted>
+      <gid>42</gid>
+      <group_password>x</group_password>
+      <groupname>trusted</groupname>
+      <userlist/>
+    </group>
+    <group>
+      <encrypted config:type="boolean">true</encrypted>
+      <gid>480</gid>
+      <group_password>x</group_password>
+      <groupname>chrony</groupname>
+      <userlist/>
+    </group>
+  </groups>
+  <host>
+    <hosts config:type="list">
+      <hosts_entry>
+        <host_address>127.0.0.1</host_address>
+        <names config:type="list">
+          <name>localhost</name>
+        </names>
+      </hosts_entry>
+      <hosts_entry>
+        <host_address>9.40.192.111</host_address>
+        <names config:type="list">
+          <name>linux-aurw</name>
+        </names>
+      </hosts_entry>
+      <hosts_entry>
+        <host_address>::1</host_address>
+        <names config:type="list">
+          <name>localhost ipv6-localhost ipv6-loopback</name>
+        </names>
+      </hosts_entry>
+      <hosts_entry>
+        <host_address>fe00::0</host_address>
+        <names config:type="list">
+          <name>ipv6-localnet</name>
+        </names>
+      </hosts_entry>
+      <hosts_entry>
+        <host_address>ff00::0</host_address>
+        <names config:type="list">
+          <name>ipv6-mcastprefix</name>
+        </names>
+      </hosts_entry>
+      <hosts_entry>
+        <host_address>ff02::1</host_address>
+        <names config:type="list">
+          <name>ipv6-allnodes</name>
+        </names>
+      </hosts_entry>
+      <hosts_entry>
+        <host_address>ff02::2</host_address>
+        <names config:type="list">
+          <name>ipv6-allrouters</name>
+        </names>
+      </hosts_entry>
+      <hosts_entry>
+        <host_address>ff02::3</host_address>
+        <names config:type="list">
+          <name>ipv6-allhosts</name>
+        </names>
+      </hosts_entry>
+    </hosts>
+  </host>
+  <kdump>
+    <add_crash_kernel config:type="boolean">true</add_crash_kernel>
+    <crash_kernel>197M</crash_kernel>
+    <crash_xen_kernel>197M\&lt;4G</crash_xen_kernel>
+    <general>
+      <KDUMPTOOL_FLAGS/>
+      <KDUMP_COMMANDLINE/>
+      <KDUMP_COMMANDLINE_APPEND/>
+      <KDUMP_CONTINUE_ON_ERROR>true</KDUMP_CONTINUE_ON_ERROR>
+      <KDUMP_COPY_KERNEL>yes</KDUMP_COPY_KERNEL>
+      <KDUMP_CPUS/>
+      <KDUMP_DUMPFORMAT>lzo</KDUMP_DUMPFORMAT>
+      <KDUMP_DUMPLEVEL>31</KDUMP_DUMPLEVEL>
+      <KDUMP_FREE_DISK_SIZE>64</KDUMP_FREE_DISK_SIZE>
+      <KDUMP_HOST_KEY/>
+      <KDUMP_IMMEDIATE_REBOOT>yes</KDUMP_IMMEDIATE_REBOOT>
+      <KDUMP_KEEP_OLD_DUMPS>5</KDUMP_KEEP_OLD_DUMPS>
+      <KDUMP_KERNELVER/>
+      <KDUMP_NETCONFIG>auto</KDUMP_NETCONFIG>
+      <KDUMP_NET_TIMEOUT>30</KDUMP_NET_TIMEOUT>
+      <KDUMP_NOTIFICATION_CC/>
+      <KDUMP_NOTIFICATION_TO/>
+      <KDUMP_POSTSCRIPT/>
+      <KDUMP_PRESCRIPT/>
+      <KDUMP_REQUIRED_PROGRAMS/>
+      <KDUMP_SAVEDIR>/var/crash</KDUMP_SAVEDIR>
+      <KDUMP_SMTP_PASSWORD/>
+      <KDUMP_SMTP_SERVER/>
+      <KDUMP_SMTP_USER/>
+      <KDUMP_TRANSFER/>
+      <KDUMP_VERBOSE>3</KDUMP_VERBOSE>
+      <KEXEC_OPTIONS/>
+    </general>
+  </kdump>
+  <keyboard>
+    <keymap>english-us</keymap>
+  </keyboard>
+  <language>
+    <language>en_US</language>
+    <languages/>
+  </language>
+  <login_settings/>
+  <networking>
+    <dhcp_options>
+      <dhclient_client_id/>
+      <dhclient_hostname_option>AUTO</dhclient_hostname_option>
+    </dhcp_options>
+    <dns>
+      <dhcp_hostname config:type="boolean">true</dhcp_hostname>
+      <hostname>linux-aurw</hostname>
+      <nameservers config:type="list">
+        <nameserver>192.168.120.104</nameserver>
+      </nameservers>
+      <resolv_conf_policy>auto</resolv_conf_policy>
+      <write_hostname config:type="boolean">false</write_hostname>
+    </dns>
+    <interfaces config:type="list">
+      <interface>
+        <bootproto>dhcp</bootproto>
+        <device>eth0</device>
+        <startmode>auto</startmode>
+      </interface>
+      <interface>
+        <bootproto>static</bootproto>
+        <device>lo</device>
+        <firewall>no</firewall>
+        <ipaddr>127.0.0.1</ipaddr>
+        <netmask>255.0.0.0</netmask>
+        <network>127.0.0.0</network>
+        <prefixlen>8</prefixlen>
+        <startmode>nfsroot</startmode>
+        <usercontrol>no</usercontrol>
+      </interface>
+    </interfaces>
+    <ipv6 config:type="boolean">true</ipv6>
+    <keep_install_network config:type="boolean">true</keep_install_network>
+    <managed config:type="boolean">false</managed>
+    <net-udev config:type="list">
+      <rule>
+        <name>eth0</name>
+        <rule>ATTR{address}</rule>
+        <value>16:85:77:49:ad:04</value>
+      </rule>
+    </net-udev>
+    <routing>
+      <ipv4_forward config:type="boolean">false</ipv4_forward>
+      <ipv6_forward config:type="boolean">false</ipv6_forward>
+    </routing>
+  </networking>
+  <ntp-client>
+    <ntp_policy>auto</ntp_policy>
+    <ntp_servers config:type="list"/>
+    <ntp_sync>manual</ntp_sync>
+  </ntp-client>
+  <proxy>
+    <enabled config:type="boolean">false</enabled>
+    <ftp_proxy/>
+    <http_proxy/>
+    <https_proxy/>
+    <no_proxy>localhost,127.0.0.1</no_proxy>
+    <proxy_password/>
+    <proxy_user/>
+  </proxy>
+  <report>
+    <errors>
+      <log config:type="boolean">true</log>
+      <show config:type="boolean">true</show>
+      <timeout config:type="integer">0</timeout>
+    </errors>
+    <messages>
+      <log config:type="boolean">true</log>
+      <show config:type="boolean">true</show>
+      <timeout config:type="integer">0</timeout>
+    </messages>
+    <warnings>
+      <log config:type="boolean">true</log>
+      <show config:type="boolean">true</show>
+      <timeout config:type="integer">0</timeout>
+    </warnings>
+    <yesno_messages>
+      <log config:type="boolean">true</log>
+      <show config:type="boolean">true</show>
+      <timeout config:type="integer">0</timeout>
+    </yesno_messages>
+  </report>
+  <services-manager>
+    <default_target>multi-user</default_target>
+    <services>
+      <disable config:type="list"/>
+      <enable config:type="list">
+        <service>YaST2-Firstboot</service>
+        <service>YaST2-Second-Stage</service>
+        <service>btrfsmaintenance-refresh</service>
+        <service>cron</service>
+        <service>firewalld</service>
+        <service>wickedd-auto4</service>
+        <service>wickedd-dhcp4</service>
+        <service>wickedd-dhcp6</service>
+        <service>wickedd-nanny</service>
+        <service>getty@tty1</service>
+        <service>haveged</service>
+        <service>issue-generator</service>
+        <service>kbdsettings</service>
+        <service>kdump</service>
+        <service>kdump-early</service>
+        <service>wicked</service>
+        <service>purge-kernels</service>
+        <service>rollback</service>
+        <service>serial-getty@hvc0</service>
+        <service>sshd</service>
+      </enable>
+      <on_demand config:type="list"/>
+    </services>
+  </services-manager>
+  <software>
+    <image/>
+    <install_recommended config:type="boolean">true</install_recommended>
+    <instsource/>
+    <packages config:type="list">
+      <package>autoyast2-installation</package>
+      <package>autoyast2</package>
+      <package>xfsprogs</package>
+      <package>wicked</package>
+      <package>wget</package>
+      <package>vim</package>
+      <package>snapper</package>
+      <package>sles-release</package>
+      <package>openssh</package>
+      <package>nfs-client</package>
+      <package>kexec-tools</package>
+      <package>kdump</package>
+      <package>iproute2</package>
+      <package>grub2</package>
+      <package>glibc</package>
+      <package>firewalld</package>
+      <package>e2fsprogs</package>
+      <package>btrfsprogs</package>
+			<package>tcpdump</package>
+    </packages>
+    <patterns config:type="list">
+      <pattern>base</pattern>
+      <pattern>minimal_base</pattern>
+    </patterns>
+    <products config:type="list">
+      <product>SLES</product>
+    </products>
+  </software>
+  <ssh_import>
+    <copy_config config:type="boolean">false</copy_config>
+    <import config:type="boolean">false</import>
+  </ssh_import>
+  <timezone>
+    <hwclock>UTC</hwclock>
+    <timezone>America/New_York</timezone>
+  </timezone>
+  <user_defaults>
+    <expire/>
+    <group>100</group>
+    <groups/>
+    <home>/home</home>
+    <inactive>-1</inactive>
+    <no_groups config:type="boolean">true</no_groups>
+    <shell>/bin/bash</shell>
+    <skel>/etc/skel</skel>
+    <umask>022</umask>
+  </user_defaults>
+  <users config:type="list">
+    <user>
+      <encrypted config:type="boolean">true</encrypted>
+      <fullname>SSH daemon</fullname>
+      <gid>481</gid>
+      <home>/var/lib/sshd</home>
+      <home_btrfs_subvolume config:type="boolean">false</home_btrfs_subvolume>
+      <password_settings>
+        <expire/>
+        <flag/>
+        <inact/>
+        <max/>
+        <min/>
+        <warn/>
+      </password_settings>
+      <shell>/bin/false</shell>
+      <uid>480</uid>
+      <user_password>!</user_password>
+      <username>sshd</username>
+    </user>
+    <user>
+      <authorized_keys config:type="list">
+        {% for ssh_key in user.sshpubkeys %}
+        <authorized_key>{{ ssh_key|string|replace('__EOF__', '') }}</authorized_key>
+	{% endfor %}
+      </authorized_keys>
+      <encrypted config:type="boolean">true</encrypted>
+      <fullname>root</fullname>
+      <gid>0</gid>
+      <home>/root</home>
+      <home_btrfs_subvolume config:type="boolean">false</home_btrfs_subvolume>
+      <password_settings>
+        <expire/>
+        <flag/>
+        <inact/>
+        <max/>
+        <min/>
+        <warn/>
+      </password_settings>
+      <shell>/bin/bash</shell>
+      <uid>0</uid>
+      <user_password>{{ password|default(recipe.crypt_root_password(), True) }}</user_password>
+      <username>root</username>
+    </user>
+    <user>
+      <encrypted config:type="boolean">true</encrypted>
+      <fullname>User for polkitd</fullname>
+      <gid>479</gid>
+      <home>/var/lib/polkit</home>
+      <home_btrfs_subvolume config:type="boolean">false</home_btrfs_subvolume>
+      <password_settings>
+        <expire/>
+        <flag/>
+        <inact/>
+        <max/>
+        <min/>
+        <warn/>
+      </password_settings>
+      <shell>/sbin/nologin</shell>
+      <uid>477</uid>
+      <user_password>!</user_password>
+      <username>polkitd</username>
+    </user>
+    <user>
+      <encrypted config:type="boolean">true</encrypted>
+      <fullname>systemd Core Dumper</fullname>
+      <gid>483</gid>
+      <home>/</home>
+      <home_btrfs_subvolume config:type="boolean">false</home_btrfs_subvolume>
+      <password_settings>
+        <expire/>
+        <flag/>
+        <inact/>
+        <max/>
+        <min/>
+        <warn/>
+      </password_settings>
+      <shell>/sbin/nologin</shell>
+      <uid>483</uid>
+      <user_password>!!</user_password>
+      <username>systemd-coredump</username>
+    </user>
+    <user>
+      <encrypted config:type="boolean">true</encrypted>
+      <fullname>bin</fullname>
+      <gid>1</gid>
+      <home>/bin</home>
+      <home_btrfs_subvolume config:type="boolean">false</home_btrfs_subvolume>
+      <password_settings>
+        <expire/>
+        <flag/>
+        <inact/>
+        <max/>
+        <min/>
+        <warn/>
+      </password_settings>
+      <shell>/sbin/nologin</shell>
+      <uid>1</uid>
+      <user_password>!</user_password>
+      <username>bin</username>
+    </user>
+    <user>
+      <encrypted config:type="boolean">true</encrypted>
+      <fullname>user for rpcbind</fullname>
+      <gid>65534</gid>
+      <home>/var/lib/empty</home>
+      <home_btrfs_subvolume config:type="boolean">false</home_btrfs_subvolume>
+      <password_settings>
+        <expire/>
+        <flag/>
+        <inact/>
+        <max/>
+        <min/>
+        <warn/>
+      </password_settings>
+      <shell>/sbin/nologin</shell>
+      <uid>481</uid>
+      <user_password>!</user_password>
+      <username>rpc</username>
+    </user>
+    <user>
+      <encrypted config:type="boolean">true</encrypted>
+      <fullname>Daemon</fullname>
+      <gid>2</gid>
+      <home>/sbin</home>
+      <home_btrfs_subvolume config:type="boolean">false</home_btrfs_subvolume>
+      <password_settings>
+        <expire/>
+        <flag/>
+        <inact/>
+        <max/>
+        <min/>
+        <warn/>
+      </password_settings>
+      <shell>/sbin/nologin</shell>
+      <uid>2</uid>
+      <user_password>!</user_password>
+      <username>daemon</username>
+    </user>
+    <user>
+      <encrypted config:type="boolean">true</encrypted>
+      <fullname>User for D-Bus</fullname>
+      <gid>498</gid>
+      <home>/run/dbus</home>
+      <home_btrfs_subvolume config:type="boolean">false</home_btrfs_subvolume>
+      <password_settings>
+        <expire/>
+        <flag/>
+        <inact/>
+        <max/>
+        <min/>
+        <warn/>
+      </password_settings>
+      <shell>/usr/bin/false</shell>
+      <uid>499</uid>
+      <user_password>!</user_password>
+      <username>messagebus</username>
+    </user>
+    <user>
+      <encrypted config:type="boolean">true</encrypted>
+      <fullname>nobody</fullname>
+      <gid>65534</gid>
+      <home>/var/lib/nobody</home>
+      <home_btrfs_subvolume config:type="boolean">false</home_btrfs_subvolume>
+      <password_settings>
+        <expire/>
+        <flag/>
+        <inact/>
+        <max/>
+        <min/>
+        <warn/>
+      </password_settings>
+      <shell>/bin/bash</shell>
+      <uid>65534</uid>
+      <user_password>!</user_password>
+      <username>nobody</username>
+    </user>
+    <user>
+      <encrypted config:type="boolean">true</encrypted>
+      <fullname>NFS statd daemon</fullname>
+      <gid>65533</gid>
+      <home>/var/lib/nfs</home>
+      <home_btrfs_subvolume config:type="boolean">false</home_btrfs_subvolume>
+      <password_settings>
+        <expire/>
+        <flag/>
+        <inact/>
+        <max/>
+        <min/>
+        <warn/>
+      </password_settings>
+      <shell>/sbin/nologin</shell>
+      <uid>479</uid>
+      <user_password>!</user_password>
+      <username>statd</username>
+    </user>
+    <user>
+      <encrypted config:type="boolean">true</encrypted>
+      <fullname>systemd Time Synchronization</fullname>
+      <gid>482</gid>
+      <home>/</home>
+      <home_btrfs_subvolume config:type="boolean">false</home_btrfs_subvolume>
+      <password_settings>
+        <expire/>
+        <flag/>
+        <inact/>
+        <max/>
+        <min/>
+        <warn/>
+      </password_settings>
+      <shell>/sbin/nologin</shell>
+      <uid>482</uid>
+      <user_password>!!</user_password>
+      <username>systemd-timesync</username>
+    </user>
+    <user>
+      <encrypted config:type="boolean">true</encrypted>
+      <fullname>Chrony Daemon</fullname>
+      <gid>480</gid>
+      <home>/var/lib/chrony</home>
+      <home_btrfs_subvolume config:type="boolean">false</home_btrfs_subvolume>
+      <password_settings>
+        <expire/>
+        <flag/>
+        <inact/>
+        <max/>
+        <min/>
+        <warn/>
+      </password_settings>
+      <shell>/bin/false</shell>
+      <uid>478</uid>
+      <user_password>!</user_password>
+      <username>chrony</username>
+    </user>
+  </users>
+  {% if ondisk %}
+  <partitioning config:type="list">
+    <drive>
+     <device>{{ ondisk }}</device>
+     <use>all</use>
+    </drive>
+  </partitioning>
+  {% endif %}
+</profile>

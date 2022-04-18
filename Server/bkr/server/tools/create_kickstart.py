@@ -20,7 +20,7 @@ from bkr.server.model import DistroTree, System, User, Recipe, \
         install_options_for_distro
 from bkr.server.util import load_config_or_exit
 from bkr.server.installopts import InstallOptions
-from bkr.server.kickstart import generate_kickstart, template_env, add_to_template_searchpath
+from bkr.server.autoinstall import generate_autoinstall, template_env, add_to_template_searchpath
 from bkr.server.bexceptions import DatabaseLookupError
 
 __description__ = 'Creates an Anaconda kickstart file'

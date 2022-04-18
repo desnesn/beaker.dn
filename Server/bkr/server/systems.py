@@ -25,7 +25,7 @@ from bkr.server.flask_util import BadRequest400, Unauthorised401, \
     convert_internal_errors, auth_required, read_json_request, \
     json_collection
 from bkr.server.installopts import InstallOptions
-from bkr.server.kickstart import generate_kickstart
+from bkr.server.autoinstall import generate_autoinstall
 from bkr.server.model import System, SystemActivity, SystemStatus, SystemPool, \
     DistroTree, OSMajor, DistroTag, Arch, Distro, User, Group, SystemAccessPolicy, \
     SystemPermission, SystemAccessPolicyRule, ImageType, KernelType, \
@@ -228,7 +228,7 @@ class SystemsController(controllers.Controller):
 
         ks_keyword = options.ks_meta.get('ks_keyword', 'inst.ks')
         if ks_keyword not in options.kernel_options:
-            rendered_kickstart = generate_kickstart(
+            rendered_kickstart = generate_autoinstall(
                 install_options=options,
                 installation=installation,
                 distro_tree=distro_tree,
@@ -1219,7 +1219,7 @@ def provision_system(fqdn):
 
         ks_keyword = install_options.ks_meta.get('ks_keyword', 'inst.ks')
         if ks_keyword not in install_options.kernel_options:
-            kickstart = generate_kickstart(install_options=install_options,
+            kickstart = generate_autoinstall(install_options=install_options,
                                            distro_tree=distro_tree, system=system, user=user,
                                            installation=installation)
             install_options.kernel_options[ks_keyword] = kickstart.link
