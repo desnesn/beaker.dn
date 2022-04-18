@@ -307,7 +307,6 @@
 				# TODO: fix https in the future
 				zypper addrepo -G {{ absolute_url('/', labdomain=True).replace("https","http") }}repos/{{ recipe.id }} beaker-tasks
 				zypper addrepo -G "{{ absolute_url('/', labdomain=True).replace("https","http") }}harness/{{ distro.osversion.osmajor }}" harness
-				zypper addrepo -G http://{{ lab_controller.fqdn }}/sles_images/{{ distro_tree.distro.name }}/Module-Python2 module-python2
 				zypper addrepo -G http://{{ lab_controller.fqdn }}/sles_images/{{ distro_tree.distro.name }}/Module-Development-Tools module-development-tools
 				zypper refresh
 
@@ -489,6 +488,7 @@
     <ask-list config:type="list"/>
     <mode>
       <confirm config:type="boolean">false</confirm>
+      <confirm_base_product_license config:type="boolean">false</confirm_base_product_license>
     </mode>
     <proposals config:type="list"/>
     <signature-handling>
@@ -873,7 +873,7 @@
   <report>
     <errors>
       <log config:type="boolean">true</log>
-      <show config:type="boolean">true</show>
+      <show config:type="boolean">false</show>
       <timeout config:type="integer">0</timeout>
     </errors>
     <messages>
