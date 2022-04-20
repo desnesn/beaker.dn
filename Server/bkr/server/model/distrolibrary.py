@@ -55,11 +55,11 @@ def default_install_options_for_distro(osmajor_name, osminor, variant, arch):
     if name == 'Fedora':
         fedora = version
 
-    suse, suse_version = False, False
+    suse, suse_sp = False, False
     suse_like = ['SUSELinuxEnterprise']
     if any(distro in name for distro in suse_like):
-        suse = str((name.split(" ",1)[0]).split("SUSELinuxEnterprise",1)[1])
-        suse_minor = str(version)
+        suse = (osmajor_name.split(" ",1)[0]).split("SUSELinuxEnterprise",1)[1]
+        suse_sp = version
 
     # We default to assuming all features are present, with features
     # conditionally turned off if needed. That way, unrecognised custom
