@@ -1,0 +1,42 @@
+#cloud-config
+autoinstall:
+  version: 1
+  identity:
+    hostname: {{ system.fqdn }}
+    password: "$6$exDY1mhS4KUYCE/2$zmn9ToZwTKLhCw.b4/b.ZRTIZM30JZ4QrOQ2aOXJ8yk96xpcCof0kxKwuX1kqLG/ygbJ1f8wxED22bTL4F46P0"
+    username: ubuntu
+  ssh:
+    install-server: true
+    allow-pw: true
+  early-commands:
+    - curl http://{{ lab_controller.fqdn }}:8000/install_start/{{ recipe.id }}
+    - bootlist -m normal -r > /bootlist.txt || true
+    #curl -O /tmp/anamon https://{{ lab_controller.fqdn }}/beaker/anamon3
+    #python3 /tmp/anamon --recipe-id {{ recipe.id }} --xmlrpc-url 'https://{{ lab_controller.fqdn }}/RPC2'
+    - curl -O http://{{ lab_controller.fqdn }}:8000/nopxe/{{ system.fqdn }}
+  late-commands:
+    - cp -p /autoinstall.yaml /target
+    # This should work, but "bootlist ... -r" is broken on Ubuntu 20.04, so must use "bootlist ... -o"
+    # bootlist -m normal -r $(ofpathname $(ip -brief -o addr show scope global | awk '{print $1}')) $(ofpathname $(df --output=source /target | tail -n1))
+    - bootlist -m normal -o $(ip -brief -o addr show scope global | awk '{print $1}') $(df --output=source /target | tail -n1) || true
+    - curtin in-target --target=/target -- hostnamectl --static set-hostname {{ system.fqdn }}
+    - echo {{ recipe.id }} > /target/root/RECIPE.TXT
+    - echo "export BEAKER_LAB_CONTROLLER_URL=\"http://{{ lab_controller.fqdn }}:8000\"" >>/target/etc/profile.d/beaker-harness-env.sh
+    - echo "export BEAKER_LAB_CONTROLLER={{ lab_controller.fqdn }}" >>/target/etc/profile.d/beaker-harness-env.sh
+    - echo "export BEAKER_RECIPE_ID={{ recipe.id }}" >>/target/etc/profile.d/beaker-harness-env.sh
+    - echo "export BEAKER_HUB_URL=\"https://{{ lab_controller.fqdn }}\"" >>/target/etc/profile.d/beaker-harness-env.sh
+    - echo "export RHTS_OPTION_COMPATIBLE=" >>/target/etc/profile.d/beaker-harness-env.sh
+    - echo "export RHTS_OPTION_COMPAT_SERVICE=" >>/target/etc/profile.d/beaker-harness-env.sh
+    - echo -n >/target/etc/profile.d/beaker.sh
+    - echo "export BEAKER=\"{{ absolute_url('/', labdomain=True) }}\"" >>/target/etc/profile.d/beaker.sh
+    - echo "export BEAKER_JOB_WHITEBOARD=''" >>/target/etc/profile.d/beaker.sh
+    - echo "export BEAKER_RECIPE_WHITEBOARD=''" >>/target/etc/profile.d/beaker.sh
+    - echo -n >/target/etc/profile.d/task-overrides-rhts.sh
+    - echo "export RHTS_OPTION_COMPATIBLE=">>/target/etc/profile.d/task-overrides-rhts.sh
+    - echo "export RHTS_OPTION_COMPAT_SERVICE=">>/target/etc/profile.d/task-overrides-rhts.sh
+    - echo "deb [allow-insecure=yes trusted=yes] http://FQDN/harness/{{ distro.osversion.osmajor }} /" >> /target/etc/apt/sources.list
+    - curtin in-target --target=/target -- apt update
+    - curtin in-target --target=/target -- apt install make restraint restraint-rhts
+    - curtin in-target --target=/target -- systemctl enable restraintd
+    - curl http://{{ lab_controller.fqdn }}:8000/postinstall_done/{{ recipe.id }}
+    - sleep 10

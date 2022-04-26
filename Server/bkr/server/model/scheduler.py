@@ -2670,6 +2670,20 @@ class Recipe(TaskBase, ActivityMixin):
                                                     install_template=kickstart,
                                                     no_template=no_ks_template)
             install_options.kernel_options[auto_installer] = rendered_kickstart.link
+        elif "Ubuntu" in str(self.distro_tree.distro.osversion.osmajor):
+            auto_installer = "autoinstall"
+            kickstart = self.kickstart
+            rendered_kickstart = generate_autoinstall(install_options=install_options,
+                                                    distro_tree=self.distro_tree,
+                                                    system=getattr(self.resource, 'system', None),
+                                                    user=self.recipeset.job.owner,
+                                                    recipe=self,
+                                                    ks_appends=ks_appends,
+                                                    install_template=kickstart,
+                                                    no_template=no_ks_template)
+            install_options.kernel_options[auto_installer] = None
+            install_options.kernel_options['ds'] = "nocloud-net;s=%s/" % rendered_kickstart.link.replace('kickstart',auto_installer)
+            install_options.kernel_options['url'] = "http://%s/ubuntu_images/%s.iso" % (self.recipeset.lab_controller.fqdn, self.distro_tree.distro.name)
         else:
             if self.kickstart and not no_ks_template:
                 # add in cobbler packages snippet...

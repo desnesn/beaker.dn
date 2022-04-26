@@ -229,6 +229,12 @@ def installer_template(osmajor):
             'autoyasts/%s' % osmajor.rstrip(string.digits),
             'autoyasts/default',
     ]
+    elif "Ubuntu" in osmajor:
+        candidates = [
+            'autoinstalls/%s' % osmajor,
+            'autoinstalls/%s' % osmajor.rstrip(string.digits),
+            'autoinstalls/default',
+        ]
     else:
         candidates = [
             'kickstarts/%s' % osmajor,
@@ -371,3 +377,22 @@ def get_kickstart(id):
     return redirect(kickstart.url) if kickstart.url else Response(
         kickstart.kickstart.encode('utf8'),
         mimetype='text/plain')
+
+
+@app.route('/autoinstall/<id>/<file>', methods=['GET'])
+def get_autoinstall(id, file):
+    """
+    Flask endpoint for serving up generated kickstarts.
+    """
+    if file == "user-data":
+        try:
+            kickstart = RenderedKickstart.by_id(id)
+        except NoResultFound:
+            abort(404)
+        return redirect(kickstart.url) if kickstart.url else Response(
+            kickstart.kickstart.encode('utf8'),
+            mimetype='text/plain')
+    elif file in [ "meta-data", "vendor-data" ]:
+        return Response(''.encode('utf8'), mimetype='text/plain')
+    else:
+        abort(404)

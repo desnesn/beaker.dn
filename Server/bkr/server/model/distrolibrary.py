@@ -61,6 +61,12 @@ def default_install_options_for_distro(osmajor_name, osminor, variant, arch):
         suse = (osmajor_name.split(" ",1)[0]).split("SUSELinuxEnterprise",1)[1]
         suse_sp = version
 
+    ubuntu, ubuntu_version = False, False
+    ubuntu_like = ['Ubuntu']
+    if any(distro in name for distro in ubuntu_like):
+        ubuntu = name
+        ubuntu_version = str(version)
+
     # We default to assuming all features are present, with features
     # conditionally turned off if needed. That way, unrecognised custom
     # distros will be assumed to support all features. The admin can
@@ -96,7 +102,8 @@ def default_install_options_for_distro(osmajor_name, osminor, variant, arch):
     # bootloader --leavebootorder
     ks_meta['has_leavebootorder'] = True
     if rhel in ('5', '6') or \
-            (fedora and fedora != 'rawhide' and int(fedora) < 18):
+            (fedora and fedora != 'rawhide' and int(fedora) < 18) or \
+       ubuntu:
         del ks_meta['has_leavebootorder']
     # repo --cost
     ks_meta['has_repo_cost'] = True
@@ -184,7 +191,7 @@ def default_install_options_for_distro(osmajor_name, osminor, variant, arch):
     # for s390, s390x and armhfp, we default to ''
     kernel_options['netbootloader'] = netbootloader.get(arch.arch, '')
     if arch.arch in ['ppc', 'ppc64', 'ppc64le']:
-        if not suse:
+        if not (suse or ubuntu):
             if rhel and int(rhel) < 9 or \
                     (fedora and fedora != 'rawhide' and int(fedora) < 34):
                 kernel_options['leavebootorder'] = None
