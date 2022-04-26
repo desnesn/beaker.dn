@@ -186,7 +186,7 @@ linux  /images/%s/kernel %s netboot_method=grub2
 initrd /images/%s/initrd
 %s
 boot
-""" % (fqdn, kernel_options, fqdn, devicetree)
+""" % (fqdn, ' '.join (["'"+x+"'" for x in kernel_options.split()]), fqdn, devicetree)
     with atomically_replaced_file(config_file) as f:
         f.write(config)
     # We also ensure a default config exists that exits
