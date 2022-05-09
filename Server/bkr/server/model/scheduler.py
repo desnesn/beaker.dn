@@ -2055,6 +2055,10 @@ class Recipe(TaskBase, ActivityMixin):
         # if it is not a group job or the group password is not set
         return self.owner.root_password
 
+    def get_login(self):
+        login, at, domain = self.recipeset.job.owner.email_address.rpartition('@')
+        return login
+
     @property
     def harnesspath(self):
         return get('basepath.harness')
