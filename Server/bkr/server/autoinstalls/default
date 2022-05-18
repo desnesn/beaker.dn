@@ -34,7 +34,9 @@ autoinstall:
     - echo -n >/target/etc/profile.d/task-overrides-rhts.sh
     - echo "export RHTS_OPTION_COMPATIBLE=">>/target/etc/profile.d/task-overrides-rhts.sh
     - echo "export RHTS_OPTION_COMPAT_SERVICE=">>/target/etc/profile.d/task-overrides-rhts.sh
-    - echo "deb [allow-insecure=yes trusted=yes] http://FQDN/harness/{{ distro.osversion.osmajor }} /" >> /target/etc/apt/sources.list
+    - echo "deb [trusted=yes] {{ absolute_url('/') }}harness/{{ distro.osversion.osmajor }} /" >> /target/etc/apt/sources.list
+    - wget --no-check-certificate -r -l1 -np -nH -e robots=off -A '*crt' --cut-dirs=2 -P /target/usr/local/share/ca-certificates/ {{ absolute_url('/certs') }}
+    - curtin in-target --target=/target -- update-ca-certificates
     - curtin in-target --target=/target -- apt update
     - curtin in-target --target=/target -- apt install make restraint restraint-rhts
     - curtin in-target --target=/target -- systemctl enable restraintd
