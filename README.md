@@ -24,7 +24,12 @@ Even though beaker.dn works fairly really well, as has been **extremely** helpfu
 Furthermore, we have mostly used only for ppc64le guests on this; hence, feel free to contribute back to this fork with patches changing the autoyasts (SLES) and (autoinstall) Ubuntu to support other arches, as well as new harness packages to support newer versions of these distros.
 
 Fedora COPR repository with beaker.dn binaries:
-* TODO
+* https://copr.fedorainfracloud.org/coprs/desnesn/beaker.dn/
+
+Quick enable:
+~~~
+dnf copr enable desnesn/beaker.dn
+~~~
 
 Usage and Installation instructions (README.md), as well as SRPMs code repo:
 * https://github.com/desnesn/beaker.dn.rpms
