@@ -33,3 +33,32 @@ dnf copr enable desnesn/beaker.dn
 
 Usage and Installation instructions (README.md), as well as SRPMs code repo:
 * https://github.com/desnesn/beaker.dn.rpms
+
+## Thanks \o/
+
+Hiper huge thanks for patches, debugging, tips and suggestions:
+~~~
+Andrew Lemay
+Brian Jacobs
+Debora Babb
+Diego Pereira Domingos
+Frank Novak
+Gery Schneider
+Gustavo Luiz Duarte
+Jeff Bastian
+Jeffrey Worthey
+Klaus Heinrich Kiwi
+Leonardo Augusto Guimaraes Garcia
+Luciano Chaves
+Matheus Castanho
+Michael Ellerman
+Murilo Opsfelder Araujo
+Murilo Fossa Vicentini
+Nathan Lynch
+Nick Child
+Paul A. Clarke
+Paulo Henrique Nobrega Tavares
+Renata Andrade Matos Ravanelli
+Rod Groce
+Tulio Magno Quites Machado Filho
+~~~
